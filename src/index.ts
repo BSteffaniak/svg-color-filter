@@ -1,8 +1,16 @@
 'use strict';
 
+type HSL = { h: number; s: number; l: number };
+
 class Color {
-    constructor(r, g, b) {
-        this.set(r, g, b);
+    r: number;
+    g: number;
+    b: number;
+
+    constructor(r: number, g: number, b: number) {
+        this.r = this.clamp(r);
+        this.g = this.clamp(g);
+        this.b = this.clamp(b);
     }
 
     toString() {
@@ -11,7 +19,7 @@ class Color {
         )})`;
     }
 
-    set(r, g, b) {
+    set(r: number, g: number, b: number) {
         this.r = this.clamp(r);
         this.g = this.clamp(g);
         this.b = this.clamp(b);
@@ -77,7 +85,7 @@ class Color {
         ]);
     }
 
-    multiply(matrix) {
+    multiply(matrix: number[]) {
         const newR = this.clamp(
             this.r * matrix[0] + this.g * matrix[1] + this.b * matrix[2],
         );
@@ -111,15 +119,15 @@ class Color {
         this.b = this.clamp((value + (this.b / 255) * (1 - 2 * value)) * 255);
     }
 
-    hsl() {
+    hsl(): HSL {
         // Code taken from https://stackoverflow.com/a/9493060/2688027, licensed under CC BY-SA.
         const r = this.r / 255;
         const g = this.g / 255;
         const b = this.b / 255;
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
-        let h,
-            s,
+        let h = 0,
+            s = 0,
             l = (max + min) / 2;
 
         if (max === min) {
@@ -150,7 +158,7 @@ class Color {
         };
     }
 
-    clamp(value) {
+    clamp(value: number) {
         if (value > 255) {
             value = 255;
         } else if (value < 0) {
@@ -160,8 +168,14 @@ class Color {
     }
 }
 
+type Loss = { loss: number; values: number[] };
+
 class Solver {
-    constructor(target, _baseColor) {
+    target: Color;
+    targetHSL: HSL;
+    reusedColor: Color;
+
+    constructor(target: Color) {
         this.target = target;
         this.targetHSL = target.hsl();
         this.reusedColor = new Color(0, 0, 0);
@@ -176,12 +190,12 @@ class Solver {
         };
     }
 
-    solveWide() {
+    solveWide(): Loss {
         const A = 5;
         const c = 15;
         const a = [60, 180, 18000, 600, 1.2, 1.2];
 
-        let best = { loss: Infinity };
+        let best = { loss: Infinity } as Loss;
         for (let i = 0; best.loss > 25 && i < 3; i++) {
             const initial = [50, 20, 3750, 50, 100, 100];
             const result = this.spsa(A, a, c, initial, 1000);
@@ -192,7 +206,7 @@ class Solver {
         return best;
     }
 
-    solveNarrow(wide) {
+    solveNarrow(wide: Loss) {
         const A = wide.loss;
         const c = 2;
         const A1 = A + 1;
@@ -200,7 +214,13 @@ class Solver {
         return this.spsa(A, a, c, wide.values, 500);
     }
 
-    spsa(A, a, c, values, iters) {
+    spsa(
+        A: number,
+        a: number[],
+        c: number,
+        values: number[],
+        iters: number,
+    ): Loss {
         const alpha = 1;
         const gamma = 0.16666666666666666;
 
@@ -231,9 +251,9 @@ class Solver {
                 bestLoss = loss;
             }
         }
-        return { values: best, loss: bestLoss };
+        return { values: best!, loss: bestLoss };
 
-        function fix(value, idx) {
+        function fix(value: number, idx: number) {
             let max = 100;
             if (idx === 2 /* saturate */) {
                 max = 7500;
@@ -256,7 +276,7 @@ class Solver {
         }
     }
 
-    loss(filters) {
+    loss(filters: number[]) {
         // Argument is array of percentages.
         const color = this.reusedColor;
         color.set(0, 0, 0);
@@ -279,8 +299,8 @@ class Solver {
         );
     }
 
-    css(filters) {
-        function fmt(idx, multiplier = 1) {
+    css(filters: number[]) {
+        function fmt(idx: number, multiplier = 1) {
             return Math.round(filters[idx] * multiplier);
         }
         return `filter: invert(${fmt(0)}%) sepia(${fmt(1)}%) saturate(${fmt(
@@ -291,7 +311,7 @@ class Solver {
     }
 }
 
-function hexToRgb(hex) {
+function hexToRgb(hex: string) {
     // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
     const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
     hex = hex.replace(shorthandRegex, (_m, r, g, b) => {
@@ -315,9 +335,9 @@ if (!process.argv[2]) {
 
 const rgb = hexToRgb(process.argv[2]);
 
-if (rgb.length !== 3) {
+if (!rgb || rgb.length !== 3) {
     console.error('Invalid format!');
-    return;
+    process.exit(1);
 }
 
 const color = new Color(rgb[0], rgb[1], rgb[2]);
