@@ -174,11 +174,13 @@ class Solver {
     target: Color;
     targetHSL: HSL;
     reusedColor: Color;
+    iters: number;
 
-    constructor(target: Color) {
+    constructor(target: Color, iters?: number) {
         this.target = target;
         this.targetHSL = target.hsl();
         this.reusedColor = new Color(0, 0, 0);
+        this.iters = iters ?? 1000;
     }
 
     solve() {
@@ -198,7 +200,7 @@ class Solver {
         let best = { loss: Infinity } as Loss;
         for (let i = 0; best.loss > 25 && i < 3; i++) {
             const initial = [50, 20, 3750, 50, 100, 100];
-            const result = this.spsa(A, a, c, initial, 1000);
+            const result = this.spsa(A, a, c, initial, this.iters);
             if (result.loss < best.loss) {
                 best = result;
             }
@@ -211,7 +213,7 @@ class Solver {
         const c = 2;
         const A1 = A + 1;
         const a = [0.25 * A1, 0.25 * A1, A1, 0.25 * A1, 0.2 * A1, 0.2 * A1];
-        return this.spsa(A, a, c, wide.values, 500);
+        return this.spsa(A, a, c, wide.values, this.iters);
     }
 
     spsa(
@@ -340,8 +342,11 @@ if (!rgb || rgb.length !== 3) {
     process.exit(1);
 }
 
+const itersString = process.argv[3];
+const iters = itersString ? parseInt(itersString) : undefined;
+
 const color = new Color(rgb[0], rgb[1], rgb[2]);
-const solver = new Solver(color);
+const solver = new Solver(color, iters);
 const result = solver.solve();
 
 console.log(JSON.stringify(result));
