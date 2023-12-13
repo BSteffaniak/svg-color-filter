@@ -161,7 +161,7 @@ class Color {
 }
 
 class Solver {
-    constructor(target, baseColor) {
+    constructor(target, _baseColor) {
         this.target = target;
         this.targetHSL = target.hsl();
         this.reusedColor = new Color(0, 0, 0);
@@ -294,7 +294,7 @@ class Solver {
 function hexToRgb(hex) {
     // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
     const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, (m, r, g, b) => {
+    hex = hex.replace(shorthandRegex, (_m, r, g, b) => {
         return r + r + g + g + b + b;
     });
 
@@ -308,34 +308,20 @@ function hexToRgb(hex) {
         : null;
 }
 
-$(document).ready(() => {
-    $('button.execute').click(() => {
-        const rgb = hexToRgb($('input.target').val());
-        if (rgb.length !== 3) {
-            alert('Invalid format!');
-            return;
-        }
+if (!process.argv[2]) {
+    console.error('Must supply hex color argument');
+    process.exit(1);
+}
 
-        const color = new Color(rgb[0], rgb[1], rgb[2]);
-        const solver = new Solver(color);
-        const result = solver.solve();
+const rgb = hexToRgb(process.argv[2]);
 
-        let lossMsg;
-        if (result.loss < 1) {
-            lossMsg = 'This is a perfect result.';
-        } else if (result.loss < 5) {
-            lossMsg = 'The is close enough.';
-        } else if (result.loss < 15) {
-            lossMsg = 'The color is somewhat off. Consider running it again.';
-        } else {
-            lossMsg = 'The color is extremely off. Run it again!';
-        }
+if (rgb.length !== 3) {
+    console.error('Invalid format!');
+    return;
+}
 
-        $('.realPixel').css('background-color', color.toString());
-        $('.filterPixel').attr('style', result.filter);
-        $('.filterDetail').text(result.filter);
-        $('.lossDetail').html(
-            `Loss: ${result.loss.toFixed(1)}. <b>${lossMsg}</b>`,
-        );
-    });
-});
+const color = new Color(rgb[0], rgb[1], rgb[2]);
+const solver = new Solver(color);
+const result = solver.solve();
+
+console.log(JSON.stringify(result));
